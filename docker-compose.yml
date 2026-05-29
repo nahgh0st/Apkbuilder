@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  apk-builder:
+    build: .
+    container_name: apk-builder
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - EMAIL_SERVICE=${EMAIL_SERVICE:-gmail}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+    volumes:
+      - ./uploads:/app/uploads
+      - ./builds:/app/builds
+      - ./outputs:/app/outputs
+    restart: unless-stopped
+    networks:
+      - apk-network
+
+networks:
+  apk-network:
+    driver: bridge

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>APK Builder - Google AI Studio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background-color: #f0f0f0;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background-color: #f0e6ff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 5px;
+        }
+
+        .upload-subtext {
+            color: #999;
+            font-size: 14px;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .file-info {
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-build {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-build:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-build:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-clear {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-clear:hover {
+            background: #e0e0e0;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            display: none;
+        }
+
+        .status.show {
+            display: block;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .status.loading {
+            background-color: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            animation: progress 2s infinite;
+        }
+
+        @keyframes progress {
+            0% { width: 0%; }
+            50% { width: 70%; }
+            100% { width: 100%; }
+        }
+
+        .download-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .download-link:hover {
+            background-color: #764ba2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 APK Builder</h1>
+        <p class="subtitle">Upload your Google AI Studio app zip to build an APK</p>
+
+        <form id="buildForm">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📦</div>
+                <div class="upload-text">Click to upload or drag and drop</div>
+                <div class="upload-subtext">ZIP files only (Max 500MB)</div>
+                <input type="file" id="fileInput" accept=".zip" />
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-size" id="fileSize"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="buildType">Build Type</label>
+                <select id="buildType" name="buildType" required>
+                    <option value="">Select build type...</option>
+                    <option value="debug">Debug APK</option>
+                    <option value="release">Release APK (requires signing)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email (for notifications)</label>
+                <input type="email" id="email" name="email" placeholder="your@email.com" required />
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn-build" id="buildBtn">Build APK</button>
+                <button type="button" class="btn-clear" id="clearBtn">Clear</button>
+            </div>
+        </form>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const form = document.getElementById('buildForm');
+        const status = document.getElementById('status');
+        const buildBtn = document.getElementById('buildBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        let selectedFile = null;
+
+        // File upload handlers
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (!file.name.endsWith('.zip')) {
+                    showStatus('Please select a ZIP file', 'error');
+                    return;
+                }
+                selectedFile = file;
+                fileName.textContent = `📁 ${file.name}`;
+                fileSize.textContent = `Size: ${(file.size / (1024 * 1024)).toFixed(2)} MB`;
+                fileInfo.classList.add('show');
+                status.classList.remove('show');
+            }
+        }
+
+        clearBtn.addEventListener('click', () => {
+            selectedFile = null;
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            status.classList.remove('show');
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            if (!selectedFile) {
+                showStatus('Please select a ZIP file', 'error');
+                return;
+            }
+
+            const buildType = document.getElementById('buildType').value;
+            const email = document.getElementById('email').value;
+
+            if (!buildType || !email) {
+                showStatus('Please fill in all required fields', 'error');
+                return;
+            }
+
+            await buildAPK(selectedFile, buildType, email);
+        });
+
+        async function buildAPK(file, buildType, email) {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('buildType', buildType);
+            formData.append('email', email);
+
+            buildBtn.disabled = true;
+            showStatus('🔨 Building your APK... This may take a few minutes.', 'loading');
+
+            try {
+                const response = await fetch('/api/build', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus(
+                        `✅ Build completed successfully!<br/>
+                        <a href="${data.downloadUrl}" class="download-link">📥 Download APK</a><br/>
+                        <small>A copy has been sent to ${email}</small>`,
+                        'success'
+                    );
+                    clearBtn.click();
+                } else {
+                    showStatus(`❌ Build failed: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+            } finally {
+                buildBtn.disabled = false;
+            }
+        }
+
+        function showStatus(message, type) {
+            status.innerHTML = message;
+            status.className = `status show ${type}`;
+            if (type === 'loading') {
+                status.innerHTML += '<div class="progress-bar"><div class="progress-fill"></div></div>';
+            }
+        }
+    </script>
+</body>
+</html>
