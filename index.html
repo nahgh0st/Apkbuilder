@@ -120,6 +120,7 @@
 
         input[type="text"],
         input[type="email"],
+        input[type="password"],
         select {
             width: 100%;
             padding: 12px;
@@ -131,6 +132,7 @@
 
         input[type="text"]:focus,
         input[type="email"]:focus,
+        input[type="password"]:focus,
         select:focus {
             outline: none;
             border-color: #667eea;
@@ -243,12 +245,39 @@
         .download-link:hover {
             background-color: #764ba2;
         }
+
+        .info-box {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            color: #004085;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .info-box a {
+            color: #004085;
+            text-decoration: underline;
+        }
+
+        small {
+            display: block;
+            margin-top: 5px;
+            color: #666;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>🚀 APK Builder</h1>
-        <p class="subtitle">Upload your Google AI Studio app zip to build an APK</p>
+        <p class="subtitle">Upload your Google AI Studio app zip to build an APK via GitHub Actions</p>
+
+        <div class="info-box">
+            ℹ️ This tool uses GitHub Actions to build your APK. <br>
+            <a href="https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token" target="_blank">Create a Personal Access Token</a> with 'repo' and 'workflow' permissions.
+        </div>
 
         <form id="buildForm">
             <div class="upload-area" id="uploadArea">
@@ -268,7 +297,7 @@
                 <select id="buildType" name="buildType" required>
                     <option value="">Select build type...</option>
                     <option value="debug">Debug APK</option>
-                    <option value="release">Release APK (requires signing)</option>
+                    <option value="release">Release APK</option>
                 </select>
             </div>
 
@@ -277,8 +306,14 @@
                 <input type="email" id="email" name="email" placeholder="your@email.com" required />
             </div>
 
+            <div class="form-group">
+                <label for="token">GitHub Personal Access Token</label>
+                <input type="password" id="token" name="token" placeholder="ghp_xxxxxxxxxxxx" required />
+                <small>⚠️ Never share your token publicly. It's only used in your browser.</small>
+            </div>
+
             <div class="button-group">
-                <button type="submit" class="btn-build" id="buildBtn">Build APK</button>
+                <button type="submit" class="btn-build" id="buildBtn">Trigger Build</button>
                 <button type="button" class="btn-clear" id="clearBtn">Clear</button>
             </div>
         </form>
@@ -287,6 +322,11 @@
     </div>
 
     <script>
+        // GitHub API Configuration
+        const REPO_OWNER = 'nahgh0st';
+        const REPO_NAME = 'Apkbuilder';
+        const WORKFLOW_FILE = 'build-apk-web.yml';
+
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
         const fileInfo = document.getElementById('fileInfo');
@@ -324,7 +364,7 @@
             if (files.length > 0) {
                 const file = files[0];
                 if (!file.name.endsWith('.zip')) {
-                    showStatus('Please select a ZIP file', 'error');
+                    showStatus('❌ Please select a ZIP file', 'error');
                     return;
                 }
                 selectedFile = file;
@@ -346,54 +386,110 @@
             e.preventDefault();
 
             if (!selectedFile) {
-                showStatus('Please select a ZIP file', 'error');
+                showStatus('❌ Please select a ZIP file', 'error');
                 return;
             }
 
             const buildType = document.getElementById('buildType').value;
             const email = document.getElementById('email').value;
+            const token = document.getElementById('token').value;
 
-            if (!buildType || !email) {
-                showStatus('Please fill in all required fields', 'error');
+            if (!buildType || !email || !token) {
+                showStatus('❌ Please fill in all required fields', 'error');
                 return;
             }
 
-            await buildAPK(selectedFile, buildType, email);
+            await uploadAndTriggerBuild(selectedFile, buildType, email, token);
         });
 
-        async function buildAPK(file, buildType, email) {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('buildType', buildType);
-            formData.append('email', email);
-
+        async function uploadAndTriggerBuild(file, buildType, email, token) {
             buildBtn.disabled = true;
-            showStatus('🔨 Building your APK... This may take a few minutes.', 'loading');
+            showStatus('📤 Uploading file to repository...', 'loading');
 
             try {
-                const response = await fetch('/api/build', {
-                    method: 'POST',
-                    body: formData
-                });
+                // Step 1: Upload ZIP file to repository
+                const timestamp = Date.now();
+                const uploadPath = `uploads/${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+                await uploadFileToRepo(file, uploadPath, token);
+                showStatus('✅ File uploaded! 🔨 Triggering build workflow...', 'loading');
 
-                const data = await response.json();
-
-                if (response.ok) {
-                    showStatus(
-                        `✅ Build completed successfully!<br/>
-                        <a href="${data.downloadUrl}" class="download-link">📥 Download APK</a><br/>
-                        <small>A copy has been sent to ${email}</small>`,
-                        'success'
-                    );
-                    clearBtn.click();
-                } else {
-                    showStatus(`❌ Build failed: ${data.error}`, 'error');
-                }
+                // Step 2: Trigger GitHub Actions workflow
+                await triggerWorkflow(uploadPath, buildType, email, token);
+                showStatus(
+                    `✅ Build triggered successfully!<br>
+                    <small>Check <a href="https://github.com/${REPO_OWNER}/${REPO_NAME}/actions" target="_blank" style="color: inherit; text-decoration: underline;">GitHub Actions</a> for build progress.<br>
+                    The APK will be available as an artifact once the build completes.</small>`,
+                    'success'
+                );
+                setTimeout(() => clearBtn.click(), 2000);
             } catch (error) {
+                console.error('Error:', error);
                 showStatus(`❌ Error: ${error.message}`, 'error');
             } finally {
                 buildBtn.disabled = false;
             }
+        }
+
+        async function uploadFileToRepo(file, path, token) {
+            const content = await fileToBase64(file);
+            const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}`;
+
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    message: `Upload APK project: ${file.name}`,
+                    content: content,
+                    branch: 'main'
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to upload file to repository');
+            }
+        }
+
+        async function triggerWorkflow(uploadPath, buildType, email, token) {
+            const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/actions/workflows/${WORKFLOW_FILE}/dispatches`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `token ${token}`,
+                    'Accept': 'application/vnd.github.v3+json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    ref: 'main',
+                    inputs: {
+                        upload_path: uploadPath,
+                        build_type: buildType,
+                        email: email
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.message || 'Failed to trigger workflow');
+            }
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
         }
 
         function showStatus(message, type) {
